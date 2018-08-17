@@ -1,8 +1,5 @@
 package com.royole.demo.bean;
 
-/**
- * Created by anlia on 2017/10/19.
- */
 
 public class MyPoint {
     public float x, y;
