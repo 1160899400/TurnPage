@@ -96,6 +96,7 @@ public class LeftPageView extends View {
         drawLastPageBitmap(bitmapLast, paintLast);
         bitmapCurrent = Bitmap.createBitmap((int) viewWidth, (int) viewHeight, Bitmap.Config.RGB_565);
         drawCurrentPageBitmap(bitmapCurrent, paintCurrent);
+
     }
 
     private int measureSize(int defaultSize, int measureSpec) {
@@ -114,22 +115,23 @@ public class LeftPageView extends View {
     public void computeScroll() {
         if (mScroller.computeScrollOffset()) {
             float x = mScroller.getCurrX();
-            float y = 0f;
             switch (turnPageMode) {
                 case TurnPageMode.MODE_RIGHT_TOP:
-                    a.y = x * x * startY * (-1) / (viewWidth * viewWidth) + 2 * startY;
+                    a.y = x * x * startY * (-1) / viewWidth  + 2 * startY * x;
+                    break;
                 case TurnPageMode.MODE_RIGHT_MIDDLE:
-                case TurnPageMode.MODE_LEFT_BOTTOM:
-                    a.y = x * x * startY / (viewWidth * viewWidth) - 2 * startY + viewHeight;
+                case TurnPageMode.MODE_RIGHT_BOTTOM:
+                    a.y = x * x * startY / viewWidth - 2 * startY * x + viewHeight;
                     break;
                 default:
                     break;
             }
             a.x = x;
+            Log.i("###turn left: ", "a.x:   " + a.x + "     a.y:  " + a.y);
             initPointXY();
             postInvalidate();
             //翻页完成时触发，恢复初始状态
-            if (mScroller.getFinalX() == x && mScroller.getFinalY() == y) {
+            if (mScroller.getFinalX() == x) {
                 setDefaultPath();
             }
         }
@@ -183,7 +185,7 @@ public class LeftPageView extends View {
     @Override
     public void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        Log.i("turn page", "isTuringPage:  " + isTurningPage);
+
         canvas.drawText("a", a.x, a.y, textPaint);
         canvas.drawText("f", f.x, f.y, textPaint);
         canvas.drawText("g", g.x, g.y, textPaint);
@@ -217,7 +219,6 @@ public class LeftPageView extends View {
     }
 
     private void drawCurrentPage(Canvas canvas, Path path) {
-        Log.i("###turn page", "draw currentpage");
         canvas.save();
         canvas.clipPath(path, Region.Op.INTERSECT);
         canvas.drawPath(path, paintCurrent);
@@ -268,7 +269,7 @@ public class LeftPageView extends View {
         e.setXY(g.x - (f.y - g.y) * (f.y - g.y) / (f.x - g.x), f.y);
         c.setXY(e.x - a.x / 10, f.y);
         p.setXY(2 * e.x / 3 + 1 * a.x / 3, 2 * e.y / 3 + 1 * a.y / 3);
-        m.setXY(a.x + (a.y - e.y) * (f.y - a.y) / (e.x - a.x), viewHeight - f.y);
+        m.setXY(a.x + (a.y - e.y) * (viewHeight - f.y - a.y) / (e.x - a.x), viewHeight - f.y);
         n.setXY(m.x - a.x + e.x, m.y - a.y + e.y);
     }
 
@@ -301,6 +302,7 @@ public class LeftPageView extends View {
         pathCurrent.quadTo(e.x, e.y, c.x, c.y);
         pathCurrent.lineTo(e.x, e.y);
         pathCurrent.lineTo(n.x, n.y);
+        pathCurrent.lineTo(viewWidth,viewHeight-f.y);
         pathCurrent.close();
         return pathCurrent;
     }
@@ -314,30 +316,29 @@ public class LeftPageView extends View {
 //        bitmapLast = bitmapCurrent;
 //        drawCurrentPageBitmap(bitmapCurrent, paintCurrent);
         turnPageMode = MODE;
-        isTurningPage = true;
-        postInvalidate();
         startTurnPageAnim();
     }
 
     private void startTurnPageAnim() {
+        isTurningPage = true;
         int dx = 0, dy = 0;
         switch (turnPageMode) {
             case TurnPageMode.MODE_RIGHT_TOP:
                 dx = 0 - (int) a.x;
-                dy = 0;
                 f.setXY(2 * viewWidth, 0f);
                 break;
             case TurnPageMode.MODE_RIGHT_MIDDLE:
             case TurnPageMode.MODE_RIGHT_BOTTOM:
                 dx = 0 - (int) a.x;
-                dy = 0;
                 f.setXY(2 * viewWidth, viewHeight);
                 break;
             default:
                 break;
         }
+        initPointXY();
+        postInvalidate();
         mScroller = new Scroller(context, new AccelerateDecelerateInterpolator());
-        mScroller.startScroll((int) a.x, 0, dx, dy, 800);
+        mScroller.startScroll((int) a.x, 0, dx, dy, 1200);
     }
 
     /**

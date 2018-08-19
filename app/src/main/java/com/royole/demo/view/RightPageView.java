@@ -468,7 +468,7 @@ public class RightPageView extends View {
         }
         mScroller = new Scroller(context, new AccelerateDecelerateInterpolator());
         isTurningPage = true;
-        mScroller.startScroll((int) a.x, (int) a.y, dx, dy, 1000);
+        mScroller.startScroll((int) a.x, (int) a.y, dx, dy, 1200);
 
     }
 

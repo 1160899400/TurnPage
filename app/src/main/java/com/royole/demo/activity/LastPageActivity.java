@@ -42,6 +42,5 @@ public class LastPageActivity extends AppCompatActivity {
         Bundle bundle = this.getIntent().getExtras();
         turnPageStartY = bundle.getFloat("StartY");
         turnPageMode = bundle.getInt("TurnPageMode");
-        leftPage.turnLeft(turnPageStartY,turnPageMode,null);
     }
 }
