@@ -114,19 +114,21 @@ public class LeftPageView extends View {
     @Override
     public void computeScroll() {
         if (mScroller.computeScrollOffset()) {
-            float x = mScroller.getCurrX();
-            switch (turnPageMode) {
-                case TurnPageMode.MODE_RIGHT_TOP:
-                    a.y = x * x * startY * (-1) / viewWidth  + 2 * startY * x;
-                    break;
-                case TurnPageMode.MODE_RIGHT_MIDDLE:
-                case TurnPageMode.MODE_RIGHT_BOTTOM:
-                    a.y = x * x * startY / viewWidth - 2 * startY * x + viewHeight;
-                    break;
-                default:
-                    break;
-            }
+            int x = mScroller.getCurrX();
+            int y = mScroller.getCurrY();
+//            switch (turnPageMode) {
+//                case TurnPageMode.MODE_RIGHT_TOP:
+//                    a.y = x * x * (int)startY * (-1) / (int)viewWidth  + 2 * (int)startY * x;
+//                    break;
+//                case TurnPageMode.MODE_RIGHT_MIDDLE:
+//                case TurnPageMode.MODE_RIGHT_BOTTOM:
+//                    a.y = x * x * (int)startY / (int)viewWidth - 2 * (int)startY * x + viewHeight;
+//                    break;
+//                default:
+//                    break;
+//            }
             a.x = x;
+            a.y = y;
             Log.i("###turn left: ", "a.x:   " + a.x + "     a.y:  " + a.y);
             initPointXY();
             postInvalidate();
@@ -203,7 +205,7 @@ public class LeftPageView extends View {
         if (!isTurningPage) {
             drawLastPage(canvas, getPathDefault());
         } else {
-            drawLastPage(canvas, getPathLast());
+            drawLastPage2(canvas, getPathLast());
             drawCurrentPage(canvas, getPathCurrent());
         }
     }
@@ -215,6 +217,14 @@ public class LeftPageView extends View {
 //        canvas.clipPath(path, Region.Op.INTERSECT);
         canvas.drawPath(path, paintLast);
 //        canvas.drawBitmap(bitmapLast, 0, 0, null);
+        canvas.restore();
+    }
+    private void drawLastPage2(Canvas canvas, Path path) {
+        canvas.save();
+        canvas.clipPath(getPathDefault());
+        canvas.clipPath(getPathCurrent(), Region.Op.INTERSECT);
+//        canvas.drawPath(path, paintLast);
+        canvas.drawBitmap(bitmapLast, 0, 0, null);
         canvas.restore();
     }
 
@@ -325,11 +335,13 @@ public class LeftPageView extends View {
         switch (turnPageMode) {
             case TurnPageMode.MODE_RIGHT_TOP:
                 dx = 0 - (int) a.x;
+                dy = 0 - (int) a.y;
                 f.setXY(2 * viewWidth, 0f);
                 break;
             case TurnPageMode.MODE_RIGHT_MIDDLE:
             case TurnPageMode.MODE_RIGHT_BOTTOM:
                 dx = 0 - (int) a.x;
+                dy = (int)viewHeight - (int) a.y;
                 f.setXY(2 * viewWidth, viewHeight);
                 break;
             default:
@@ -338,7 +350,7 @@ public class LeftPageView extends View {
         initPointXY();
         postInvalidate();
         mScroller = new Scroller(context, new AccelerateDecelerateInterpolator());
-        mScroller.startScroll((int) a.x, 0, dx, dy, 1200);
+        mScroller.startScroll((int) a.x, (int)a.y, dx, dy, 1200);
     }
 
     /**
