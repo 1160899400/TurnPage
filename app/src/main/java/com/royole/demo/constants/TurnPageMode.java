@@ -5,7 +5,10 @@ package com.royole.demo.constants;
  * @date 2018/8/16
  */
 
-public class  TurnPageMode {
+/**
+ * 翻页的模式
+ */
+public class TurnPageMode {
     public static final int MODE_NO_ACTION = 0;
     public static final int MODE_RIGHT_TOP = 1;
     public static final int MODE_RIGHT_MIDDLE = 2;

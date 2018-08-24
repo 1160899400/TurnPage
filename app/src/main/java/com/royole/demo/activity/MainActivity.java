@@ -13,6 +13,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private RightPageView rightPageView;
     private Button btnNext;
+    private Button btnLast;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -21,22 +22,27 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         bindView();
     }
 
-    private void bindView(){
+    private void bindView() {
         btnNext = findViewById(R.id.btn_next);
         btnNext.setOnClickListener(this);
+        btnLast = findViewById(R.id.btn_last);
+        btnLast.setOnClickListener(this);
         rightPageView = findViewById(R.id.right_page);
     }
 
     @Override
     public void onClick(View view) {
-        switch (view.getId()){
+        switch (view.getId()) {
             case R.id.btn_next:
                 Intent intent = new Intent(MainActivity.this, LastPageActivity.class);
                 Bundle bundle = new Bundle();
-                bundle.putInt("TurnPageMode",rightPageView.turnPageMode2);
-                bundle.putFloat("StartY",rightPageView.postAHeight);
+                bundle.putInt("TurnPageMode", rightPageView.sendMode);
+                bundle.putFloat("StartY", rightPageView.postAHeight);
                 intent.putExtras(bundle);
                 startActivity(intent);
+                break;
+            case R.id.btn_last:
+                rightPageView.turnRight(rightPageView.postAHeight, rightPageView.sendMode + 3, null);
                 break;
             default:
                 break;

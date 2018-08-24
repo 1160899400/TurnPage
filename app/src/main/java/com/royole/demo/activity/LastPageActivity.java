@@ -27,18 +27,18 @@ public class LastPageActivity extends AppCompatActivity {
         turnPage();
     }
 
-    private void bindView(){
+    private void bindView() {
         leftPage = findViewById(R.id.left_page);
         btn_next = findViewById(R.id.btn_next);
         btn_next.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                leftPage.turnLeft(turnPageStartY,turnPageMode,null);
+                leftPage.turnLeft(turnPageStartY, turnPageMode, null);
             }
         });
     }
 
-    private void turnPage(){
+    private void turnPage() {
         Bundle bundle = this.getIntent().getExtras();
         turnPageStartY = bundle.getFloat("StartY");
         turnPageMode = bundle.getInt("TurnPageMode");
