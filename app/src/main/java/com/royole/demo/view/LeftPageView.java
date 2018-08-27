@@ -198,7 +198,7 @@ public class LeftPageView extends View {
             if (mScroller1.getFinalX() == x && mScroller1.getFinalY() == y) {
                 setDefaultPath();
             }
-            if (turnPage && x < 50 && x >= 0) {
+            if (turnPage && x > viewWidth && x <= viewWidth + 50) {
                 postAHeight = y;
                 postAWidth = x;
             }
@@ -258,7 +258,7 @@ public class LeftPageView extends View {
                     //判断翻页是否成功
                     if (turnPageMode != TurnPageMode.MODE_NO_ACTION) {
                         if (turnPage) {
-                            startTurnLeftAnim();
+                            startTurnRightAnim();
                         } else {
                             cancelTurnRightAnim();
                         }
@@ -314,8 +314,8 @@ public class LeftPageView extends View {
                 a.setXY(pointX, pointY);
                 a.y = viewHeight - 1;
                 f.setXY(0, viewHeight);
-                initPointTurnLeft();
-                if (a.x < viewWidth * 0.1) {
+                initPointTurnRight();
+                if (a.x > 0.85 * viewWidth) {
                     turnPage = true;
                 } else {
                     turnPage = false;
@@ -328,9 +328,9 @@ public class LeftPageView extends View {
                 initPointTurnLeft();
                 if (c.x > viewWidth) {
                     calcPointAByTouchPoint();
-                    initPointTurnLeft();
+                    initPointTurnRight();
                 }
-                if (a.x > viewWidth * 0.85) {
+                if (a.x > 0.85 * viewWidth) {
                     turnPage = true;
                 } else {
                     turnPage = false;
@@ -524,31 +524,7 @@ public class LeftPageView extends View {
 //        bitmapLast = bitmapCurrent;
 //        drawCurrentPageBitmap(bitmapCurrent, paintCurrent);
         turnPageMode = MODE;
-        startTurnPageAnim();
-    }
-
-    private void startTurnPageAnim() {
-        isTurningPage = true;
-        int dx = 0, dy = 0;
-        switch (turnPageMode) {
-            case TurnPageMode.MODE_RIGHT_TOP:
-                dx = 0 - (int) a.x;
-                dy = 0 - (int) a.y;
-                f.setXY(2 * viewWidth, 0f);
-                break;
-            case TurnPageMode.MODE_RIGHT_MIDDLE:
-            case TurnPageMode.MODE_RIGHT_BOTTOM:
-                dx = 0 - (int) a.x;
-                dy = (int) viewHeight - (int) a.y;
-                f.setXY(2 * viewWidth, viewHeight);
-                break;
-            default:
-                break;
-        }
-        initPointTurnLeft();
-        postInvalidate();
-        mScroller2 = new Scroller(context, new AccelerateDecelerateInterpolator());
-        mScroller2.startScroll((int) a.x, (int) a.y, dx, dy, 2500);
+        startTurnLeftAnim();
     }
 
 
@@ -570,14 +546,14 @@ public class LeftPageView extends View {
         int dx = 0, dy = 0;
         switch (turnPageMode) {
             case TurnPageMode.MODE_RIGHT_TOP:
-                dx = (int) viewWidth - (int) a.x;
+                dx = 0 - (int) a.x;
                 dy = 0 - (int) a.y;
                 f.setXY(2 * viewWidth, 0f);
                 calPointFactor = -1;
                 break;
             case TurnPageMode.MODE_RIGHT_MIDDLE:
             case TurnPageMode.MODE_RIGHT_BOTTOM:
-                dx = (int) viewWidth - (int) a.x;
+                dx = 0 - (int) a.x;
                 dy = (int) viewHeight - (int) a.y;
                 f.setXY(2 * viewWidth, viewHeight);
                 calPointFactor = 1;
@@ -587,6 +563,7 @@ public class LeftPageView extends View {
         }
         initPointTurnLeft();
         postInvalidate();
+        mScroller2 = new Scroller(context, new AccelerateDecelerateInterpolator());
         mScroller2.startScroll((int) a.x, (int) a.y, dx, dy, 2500);
     }
 
