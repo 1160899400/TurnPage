@@ -3,6 +3,7 @@ package com.royole.demo.view;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
@@ -64,31 +65,47 @@ public class LeftPageView extends View {
     private void init(Context context, AttributeSet attrs) {
         this.context = context;
         a = new MyPoint();
-        a.setXY(100, 1500);
+        a.setXY(-1, -1);
+        b = new MyPoint();
         c = new MyPoint();
+        d = new MyPoint();
         e = new MyPoint();
         f = new MyPoint();
         g = new MyPoint();
+        h = new MyPoint();
+        i = new MyPoint();
+        j = new MyPoint();
+        k = new MyPoint();
         m = new MyPoint();
         n = new MyPoint();
+        o = new MyPoint();
         p = new MyPoint();
+        q = new MyPoint();
+        r = new MyPoint();
         pathLast = new Path();
         pathCurrent = new Path();
 
         pathAPaint = new Paint();
-        pathAPaint.setColor(ContextCompat.getColor(context, R.color.blue_light));
         pathAPaint.setAntiAlias(true);
-
+        pathAPaint.setColor(ContextCompat.getColor(context, R.color.blue_light));
         pathBPaint = new Paint();
         pathBPaint.setAntiAlias(true);
         pathBPaint.setColor(ContextCompat.getColor(context, R.color.green_light));
+        pathCPaint = new Paint();
+        pathCPaint.setAntiAlias(true);
+        pathCPaint.setColor(ContextCompat.getColor(context, R.color.red_light));
+        pathDPaint = new Paint();
+        pathDPaint.setAntiAlias(true);
+        pathDPaint.setColor(ContextCompat.getColor(context, R.color.yellow_light));
 
         textPaint = new Paint();
-        textPaint.setAntiAlias(true);
-        textPaint.setColor(ContextCompat.getColor(context, R.color.red_light));
+        textPaint.setColor(Color.BLACK);
+        textPaint.setTextAlign(Paint.Align.CENTER);
         textPaint.setSubpixelText(true);
         textPaint.setTextSize(30);
+        mScroller1 = new Scroller(context);
         mScroller2 = new Scroller(context);
+        mMatrix = new Matrix();
 
     }
 
@@ -128,7 +145,7 @@ public class LeftPageView extends View {
         //下面开始绘制区域内的内容...
         mCanvas.drawPath(getPathDefault(), pathPaint);
         //结束绘制区域内的内容...
-        mCanvas.drawText("这是在A区域的内容...AAAA", 260, viewHeight - 100, textPaint);
+        mCanvas.drawText("这是在A区域的内容...AAAA", viewWidth - 300, viewHeight - 100, textPaint);
     }
 
     /**
@@ -145,6 +162,7 @@ public class LeftPageView extends View {
     private void drawPathBContentBitmap(Bitmap bitmap, Paint pathPaint) {
         Canvas mCanvas = new Canvas(bitmap);
         mCanvas.drawPath(getPathDefault(), pathPaint);
+        mCanvas.drawText("这是在B区域的内容...BBBB", 260, viewHeight - 100, textPaint);
     }
 
     /**
@@ -213,9 +231,6 @@ public class LeftPageView extends View {
             if (mScroller2.getFinalX() == x && mScroller2.getFinalY() == y) {
                 setDefaultPath();
             }
-            if (turnPage && x < 50 && x >= 0) {
-                postAHeight = y;
-            }
         }
     }
 
@@ -231,10 +246,10 @@ public class LeftPageView extends View {
         } else if (TurnPageMode.MODE_LEFT_MIDDLE == turnPageMode || TurnPageMode.MODE_LEFT_BOTTOM == turnPageMode) {
             drawCurPage(canvas, getPathAFromBottomLeft());
             drawBackPage(canvas, getPathC(getPathAFromBottomLeft()));
-            drawNextPage(canvas, getPathB(getPathAFromBottomLeft()));
+            drawLastPage(canvas, getPathB(getPathAFromBottomLeft()));
         } else if (TurnPageMode.MODE_RIGHT_TOP == turnPageMode || TurnPageMode.MODE_RIGHT_MIDDLE == turnPageMode || TurnPageMode.MODE_RIGHT_BOTTOM == turnPageMode) {
             drawCurPage(canvas, getPathAFromRight());
-            drawLastPage(canvas, getPathD());
+            drawNextPage(canvas, getPathD());
 //            canvas.drawText("a", a.x, a.y, textPaint);
 //            canvas.drawText("m", m.x, m.y, textPaint);
 //            canvas.drawText("n", n.x, n.y, textPaint);
@@ -295,7 +310,7 @@ public class LeftPageView extends View {
 
     private void touchPoint(float pointX, float pointY) {
         switch (turnPageMode) {
-            case TurnPageMode.MODE_RIGHT_TOP:
+            case TurnPageMode.MODE_LEFT_TOP:
                 a.setXY(pointX, pointY);
                 f.setXY(0, 0);
                 initPointTurnRight();
@@ -310,7 +325,7 @@ public class LeftPageView extends View {
                 }
                 postInvalidate();
                 break;
-            case TurnPageMode.MODE_RIGHT_MIDDLE:
+            case TurnPageMode.MODE_LEFT_MIDDLE:
                 a.setXY(pointX, pointY);
                 a.y = viewHeight - 1;
                 f.setXY(0, viewHeight);
@@ -322,10 +337,10 @@ public class LeftPageView extends View {
                 }
                 postInvalidate();
                 break;
-            case TurnPageMode.MODE_RIGHT_BOTTOM:
+            case TurnPageMode.MODE_LEFT_BOTTOM:
                 a.setXY(pointX, pointY);
                 f.setXY(0, viewHeight);
-                initPointTurnLeft();
+                initPointTurnRight();
                 if (c.x > viewWidth) {
                     calcPointAByTouchPoint();
                     initPointTurnRight();
@@ -367,17 +382,28 @@ public class LeftPageView extends View {
         float angel = new Double(Math.toDegrees(Math.acos(cos0))).floatValue();
         //设置翻转和旋转矩阵
         mMatrix.reset();
-        mMatrix.setRotate(-2 * angel, 0, f.y);
-        mMatrix.postTranslate(a.x - 0, a.y - f.y);
+        mMatrix.setRotate(2 * angel, viewWidth, f.y);
+        mMatrix.postTranslate(a.x - viewWidth, a.y - f.y);
 
-        canvas.drawBitmap(bmpBackPage, mMatrix, null);
+        Paint vPaint = new Paint();
+        vPaint.setStyle(Paint.Style.STROKE);
+        vPaint.setAlpha(50);
+        canvas.drawBitmap(bmpBackPage, mMatrix, vPaint);
         canvas.restore();
     }
 
     private void drawNextPage(Canvas canvas, Path path) {
         canvas.save();
         canvas.clipPath(path);
-        canvas.drawBitmap(bmpNextPage, 0, 0, null);
+        mMatrix.reset();
+        float angel = new Double(Math.toDegrees(Math.asin(sin0))).floatValue();
+        mMatrix.setRotate(-angel);
+        if (turnPageMode == TurnPageMode.MODE_RIGHT_TOP) {
+            mMatrix.postTranslate(a.x, a.y);
+        } else {
+            mMatrix.postTranslate(m.x, m.y);
+        }
+        canvas.drawBitmap(bmpNextPage, mMatrix, null);
         canvas.restore();
     }
 
@@ -385,6 +411,7 @@ public class LeftPageView extends View {
         a.setXY(-1, -1);
         isTurningPage = false;
         turnPageMode = TurnPageMode.MODE_NO_ACTION;
+        turnPage = false;
         postInvalidate();
     }
 
@@ -408,14 +435,16 @@ public class LeftPageView extends View {
     private void initPointTurnLeft() {
         g.setXY((a.x + f.x) / 2, (a.y + f.y) / 2);
         r.setXY(g.x - (f.y - g.y) * (f.y - g.y) / (f.x - g.x), f.y);
-        q.setXY(r.x + a.x / 10, f.y);
-        p.setXY(2 * r.x / 3 + 1 * a.x / 3, 2 * r.y / 3 + 1 * a.y / 3);
-        float eh = (float) Math.hypot(a.x - r.x, a.y - r.y);
+//        q.setXY(r.x - a.x / 10, f.y);
+//        p.setXY(2 * r.x / 3 + 1 * a.x / 3, 2 * r.y / 3 + 1 * a.y / 3);
+        float eh = (float) Math.hypot(r.x - a.x, a.y - r.y);
         sin0 = (a.y - r.y) / eh;
         cos0 = (a.x - r.x) / eh;
-        m.setXY(a.x + calPointFactor * viewHeight * sin0, a.y - calPointFactor * viewHeight * cos0);
+        m.setXY(a.x - calPointFactor * viewHeight * sin0, a.y + calPointFactor * viewHeight * cos0);
         o.setXY(a.x - viewWidth * cos0, a.y - viewWidth * sin0);
         n.setXY(m.x - a.x + o.x, m.y - a.y + o.y);
+//        p.setXY(o.x + a.x / 10, o.y + (a.x / 10) * sin0 / cos0 );
+//        q.setXY();
     }
 
     private Path getPathDefault() {
@@ -434,13 +463,14 @@ public class LeftPageView extends View {
      */
     private Path getPathAFromTopLeft() {
         Path path = new Path();
+        path.moveTo(viewWidth, 0);
         path.lineTo(c.x, c.y);
         path.quadTo(e.x, e.y, b.x, b.y);
         path.lineTo(a.x, a.y);
         path.lineTo(k.x, k.y);
         path.quadTo(h.x, h.y, j.x, j.y);
-        path.lineTo(viewWidth, viewHeight);
         path.lineTo(0, viewHeight);
+        path.lineTo(viewWidth, viewHeight);
         path.close();
         return path;
     }
@@ -452,13 +482,14 @@ public class LeftPageView extends View {
      */
     private Path getPathAFromBottomLeft() {
         Path path = new Path();
-        path.lineTo(0, viewHeight);
+        path.moveTo(viewWidth, 0);
+        path.lineTo(viewWidth, viewHeight);
         path.lineTo(c.x, c.y);
         path.quadTo(e.x, e.y, b.x, b.y);
         path.lineTo(a.x, a.y);
         path.lineTo(k.x, k.y);
         path.quadTo(h.x, h.y, j.x, j.y);
-        path.lineTo(viewWidth, 0);
+        path.lineTo(0, 0);
         path.close();//闭合区域
         return path;
     }
@@ -506,7 +537,7 @@ public class LeftPageView extends View {
         path.moveTo(m.x, m.y);
         path.lineTo(a.x, a.y);
         path.lineTo(p.x, p.y);
-        path.quadTo(r.x, r.y, 0, f.y);
+        path.quadTo(r.x, r.y, q.x, q.y);
         path.lineTo(r.x, r.y);
         path.lineTo(o.x, o.y);
         path.lineTo(n.x, n.y);
@@ -534,8 +565,8 @@ public class LeftPageView extends View {
     private void calcPointAByTouchPoint() {
         float w0 = c.x - f.x;
         float w1 = Math.abs(viewWidth - a.x);
-        float w2 = viewWidth * w1 / w0;
-        a.x = Math.abs(viewWidth - w2) - viewWidth / 100;
+        float w2 = viewWidth * w1 / w0 - viewWidth / 100;
+        a.x = Math.abs(viewWidth - w2);
         float h1 = Math.abs(viewHeight - a.y);
         float h2 = w2 * h1 / w1;
         a.y = Math.abs(f.y - h2);

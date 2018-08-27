@@ -7,6 +7,8 @@ import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.Region;
+import android.graphics.drawable.GradientDrawable;
 import android.support.v4.content.ContextCompat;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -32,12 +34,18 @@ public class RightPageView extends View {
     private float viewWidth;
     private float viewHeight;
 
+    private int deepColor = 0x33333333;
+    private int lightColor = 0x01333333;
+
     /**
      * 翻页模式：不翻页，从右上右下右中，左上左下左中翻页
      */
     private int turnPageMode = TurnPageMode.MODE_NO_ACTION;
 
     public int sendMode = TurnPageMode.MODE_NO_ACTION;
+    public Bitmap sendBmp;
+
+    public int pageIndex = 1;
 
     public float postAWidth;
     public float postAHeight;
@@ -78,6 +86,12 @@ public class RightPageView extends View {
     private float sin0;
     private float cos0;
     private Matrix mMatrix;
+
+    float lPathAShadowDis = 20.0f;
+    float rPathAShadowDis = 20.0f;
+    private GradientDrawable shadow1;
+    private GradientDrawable shadow2;
+    private GradientDrawable shadow3;
 
 
     private MyPoint a, f, g, e, h, c, j, b, k, d, i, m, n, o, p, q, r;
@@ -136,6 +150,7 @@ public class RightPageView extends View {
         mScroller1 = new Scroller(context, new LinearInterpolator());
         mScroller2 = new Scroller(context, new AccelerateDecelerateInterpolator());
         mMatrix = new Matrix();
+        pageIndex = 1;
     }
 
     @Override
@@ -215,17 +230,21 @@ public class RightPageView extends View {
         } else if (TurnPageMode.MODE_RIGHT_TOP == turnPageMode) {
             drawCurPage(canvas, getPathAFromTopRight());
             drawBackPage(canvas, getPathC(getPathAFromTopRight()));
+            drawShadow(canvas, getPathAFromTopRight());
             drawNextPage(canvas, getPathB(getPathAFromTopRight()));
-        } else if (TurnPageMode.MODE_RIGHT_MIDDLE == turnPageMode || TurnPageMode.MODE_RIGHT_BOTTOM == turnPageMode) {
+        } else if (TurnPageMode.MODE_RIGHT_MIDDLE == turnPageMode) {
             drawCurPage(canvas, getPathAFromBottomRight());
             drawBackPage(canvas, getPathC(getPathAFromBottomRight()));
+            drawShadowHorizontal(canvas, getPathAFromBottomRight());
+            drawNextPage(canvas, getPathB(getPathAFromBottomRight()));
+        } else if (TurnPageMode.MODE_RIGHT_BOTTOM == turnPageMode) {
+            drawCurPage(canvas, getPathAFromBottomRight());
+            drawBackPage(canvas, getPathC(getPathAFromBottomRight()));
+            drawShadow(canvas, getPathAFromBottomRight());
             drawNextPage(canvas, getPathB(getPathAFromBottomRight()));
         } else if (TurnPageMode.MODE_LEFT_TOP == turnPageMode || TurnPageMode.MODE_LEFT_MIDDLE == turnPageMode || TurnPageMode.MODE_LEFT_BOTTOM == turnPageMode) {
             drawCurPage(canvas, getPathAFromLeft());
             drawLastPage(canvas, getPathD());
-            canvas.drawText("a", a.x, a.y, textPaint);
-            canvas.drawText("m", m.x, m.y, textPaint);
-            canvas.drawText("n", n.x, n.y, textPaint);
         }
     }
 
@@ -237,13 +256,14 @@ public class RightPageView extends View {
             a.setXY(x, y);
             initPointTurnLeft();
             postInvalidate();
-            //翻页完成时触发，恢复初始状态
+            //翻页完成时触发
             if (mScroller1.getFinalX() == x && mScroller1.getFinalY() == y) {
-                setDefaultPath();
+                addPage();
             }
             if (turnPage && x < 50 && x >= 0) {
                 postAHeight = y;
                 postAWidth = x;
+
             }
         }
         if (mScroller2.computeScrollOffset()) {
@@ -252,12 +272,9 @@ public class RightPageView extends View {
             a.setXY(x, y);
             initPointTurnRight();
             postInvalidate();
-            //翻页完成时触发，恢复初始状态
+            //翻页完成时触发
             if (mScroller2.getFinalX() == x && mScroller2.getFinalY() == y) {
-                setDefaultPath();
-            }
-            if (turnPage && x < 50 && x >= 0) {
-                postAHeight = y;
+                decPage();
             }
         }
     }
@@ -321,8 +338,6 @@ public class RightPageView extends View {
             case TurnPageMode.MODE_RIGHT_TOP:
                 a.setXY(pointX, pointY);
                 f.setXY(viewWidth, 0);
-                Log.i("###","a.x: " + a.x + "  a.y:  " +a.y);
-                Log.i("###","c.x: " + c.x + "  c.y:  " +c.y);
                 initPointTurnLeft();
                 if (c.x < 0) {
                     calcPointAByTouchPoint();
@@ -376,6 +391,7 @@ public class RightPageView extends View {
         //对绘制内容进行裁剪，取和A区域的交集
         canvas.clipPath(path);
         canvas.drawBitmap(bmpCurrentPage, 0, 0, null);
+
         canvas.restore();
     }
 
@@ -422,7 +438,11 @@ public class RightPageView extends View {
         mMatrix.setRotate(-2 * angel, 0, f.y);
         mMatrix.postTranslate(a.x - 0, a.y - f.y);
 
-        canvas.drawBitmap(bmpBackPage, mMatrix, null);
+        Paint vPaint = new Paint();
+        vPaint.setStyle(Paint.Style.STROKE);
+        vPaint.setAlpha(60);
+        canvas.drawColor(getResources().getColor(R.color.gray));
+        canvas.drawBitmap(bmpBackPage, mMatrix, vPaint);
         canvas.restore();
     }
 
@@ -433,14 +453,15 @@ public class RightPageView extends View {
         mMatrix.reset();
         float angel = new Double(Math.toDegrees(Math.asin(sin0))).floatValue();
         mMatrix.setRotate(angel);
-        if (calPointFactor == 1) {
+        if (calPointFactor == 1){
             mMatrix.postTranslate(n.x, n.y);
-        } else {
+        }else {
             mMatrix.postTranslate(o.x, o.y);
         }
         canvas.drawBitmap(bmpLastPage, mMatrix, null);
         canvas.restore();
     }
+
 
     private void drawPathDContentBitmap(Bitmap bitmap, Paint paint) {
         Canvas mCanvas = new Canvas(bitmap);
@@ -457,6 +478,32 @@ public class RightPageView extends View {
         isTurningPage = false;
         turnPage = false;
         postInvalidate();
+    }
+
+    private void addPage() {
+        a.setXY(-1, -1);
+        turnPageMode = TurnPageMode.MODE_NO_ACTION;
+        isTurningPage = false;
+        turnPage = false;
+        postInvalidate();
+        pageIndex++;
+//        setBmpCurrentPage(bmpNextPage);
+//        setBmpBackPage();
+//        setBmpLastPage(bmpCurrentPage);
+//        setBmpNextPage();
+    }
+
+    private void decPage() {
+        a.setXY(-1, -1);
+        turnPageMode = TurnPageMode.MODE_NO_ACTION;
+        isTurningPage = false;
+        turnPage = false;
+        postInvalidate();
+        pageIndex--;
+//        setBmpCurrentPage(bmpLastPage);
+//        setBmpBackPage();
+//        setBmpLastPage();
+//        setBmpNextPage(bmpCurrentPage);
     }
 
     /**
@@ -550,13 +597,19 @@ public class RightPageView extends View {
      */
     private Path getPathD() {
         Path path = new Path();
-        path.moveTo(m.x, m.y);
-        path.lineTo(a.x, a.y);
-        path.lineTo(p.x, p.y);
-        path.quadTo(r.x, r.y, 0, f.y);
-        path.lineTo(r.x, r.y);
-        path.lineTo(o.x, o.y);
-        path.lineTo(n.x, n.y);
+        path.moveTo(a.x,a.y);
+        path.quadTo(m.x,m.y,q.x,q.y);
+        path.lineTo(n.x,n.y);
+        path.lineTo(p.x,p.y);
+        path.quadTo(o.x,o.y,a.x,a.y);
+
+//        path.moveTo(m.x, m.y);
+//        path.lineTo(a.x, a.y);
+//        path.lineTo(p.x, p.y);
+//        path.quadTo(r.x, r.y, 0, f.y);
+//        path.lineTo(r.x, r.y);
+//        path.lineTo(o.x, o.y);
+//        path.lineTo(n.x, n.y);
         path.close();
         return path;
     }
@@ -577,30 +630,46 @@ public class RightPageView extends View {
         k = MyPointUtils.getIntersectionPoint(a, h, c, j);
         d.setXY((c.x + 2 * e.x + b.x) / 4, (2 * e.y + c.y + b.y) / 4);
         i.setXY((j.x + 2 * h.x + k.x) / 4, (2 * h.y + j.y + k.y) / 4);
+        //计算d点到ae的距离
+        float lA = a.y - e.y;
+        float lB = e.x - a.x;
+        float lC = a.x * e.y - e.x * a.y;
+        lPathAShadowDis = Math.abs((lA * d.x + lB * d.y + lC) / (float) Math.hypot(lA, lB));
+        //计算i点到ah的距离
+        float rA = a.y - h.y;
+        float rB = h.x - a.x;
+        float rC = a.x * h.y - h.x * a.y;
+        rPathAShadowDis = Math.abs((rA * i.x + rB * i.y + rC) / (float) Math.hypot(rA, rB));
     }
 
     private void initPointTurnRight() {
         //g为a,f中点
         g.setXY((a.x + f.x) / 2, (a.y + f.y) / 2);
         r.setXY(g.x - (f.y - g.y) * (f.y - g.y) / (f.x - g.x), f.y);
-        q.setXY(r.x + a.x / 10, f.y);
-        p.setXY(2 * r.x / 3 + 1 * a.x / 3, 2 * r.y / 3 + 1 * a.y / 3);
+//        q.setXY(r.x + a.x / 10, f.y);
+//        p.setXY(2 * r.x / 3 + 1 * a.x / 3, 2 * r.y / 3 + 1 * a.y / 3);
         float eh = (float) Math.hypot(a.x - r.x, a.y - r.y);
         sin0 = (a.y - r.y) / eh;
         cos0 = (a.x - r.x) / eh;
         m.setXY(a.x + calPointFactor * viewHeight * sin0, a.y - calPointFactor * viewHeight * cos0);
         o.setXY(a.x - viewWidth * cos0, a.y - viewWidth * sin0);
         n.setXY(m.x - a.x + o.x, m.y - a.y + o.y);
+
+        Log.i("###","o.x:  " + o.x + "  o.y:  " + o.y);
+        p.setXY(o.x - calPointFactor * (viewWidth - a.x) / 10 * sin0, o.y + calPointFactor * (viewWidth - a.x) / 10 * cos0);
+        q.setXY(m.x + (viewWidth - a.x) / 6 * cos0,m.y + (viewWidth - a.x) / 6 * sin0);
+        Log.i("###","p.x:  " + p.x + "  p.y:  " + p.y);
+        Log.i("###","q.x:  " + q.x + "  q.y:  " + q.y);
     }
+
 
     /**
      * 如果c点x坐标小于0,根据触摸点重新测量a点坐标
      */
     private void calcPointAByTouchPoint() {
-        Log.i("###","re calc");
         float w0 = viewWidth - c.x;
         float w1 = Math.abs(f.x - a.x);
-        float w2 = viewWidth * w1 / w0 - viewWidth/100;
+        float w2 = viewWidth * w1 / w0 - viewWidth / 100;
         a.x = Math.abs(f.x - w2);
         float h1 = Math.abs(f.y - a.y);
         float h2 = w2 * h1 / w1;
@@ -665,6 +734,7 @@ public class RightPageView extends View {
         }
         mScroller1 = new Scroller(context, new AccelerateDecelerateInterpolator());
         sendMode = turnPageMode;
+        sendBmp = bmpBackPage;
         mScroller1.startScroll((int) a.x, (int) a.y, dx, dy, 2500);
     }
 
@@ -684,4 +754,71 @@ public class RightPageView extends View {
         }
         mScroller1.startScroll((int) a.x, (int) a.y, dx, dy, 400);
     }
+
+    private void drawShadow(Canvas canvas, Path pathA) {
+        float viewDiagonalLength = (float) Math.hypot(viewWidth, viewHeight);
+        Path mPath = new Path();
+        //渐变颜色数组
+        int[] gradientColor1 = {lightColor, deepColor};
+        int[] gradientColor2 = {deepColor, lightColor, lightColor};
+        if (turnPageMode == TurnPageMode.MODE_RIGHT_TOP) {
+            shadow1 = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, gradientColor1);
+            shadow1.setGradientType(GradientDrawable.LINEAR_GRADIENT);
+            shadow1.setBounds((int) (e.x - lPathAShadowDis / 2), (int) e.y, (int) (e.x), (int) (e.y + viewHeight));
+            shadow2 = new GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, gradientColor2);
+            shadow2.setGradientType(GradientDrawable.LINEAR_GRADIENT);
+            shadow2.setBounds((int) h.x, (int) (h.y - rPathAShadowDis / 2), (int) (h.x + viewDiagonalLength * 10), (int) h.y);
+        } else {
+            shadow1 = new GradientDrawable(GradientDrawable.Orientation.RIGHT_LEFT, gradientColor1);
+            shadow1.setGradientType(GradientDrawable.LINEAR_GRADIENT);
+            shadow1.setBounds((int) (e.x), (int) e.y, (int) (e.x + lPathAShadowDis / 2), (int) (e.y + viewHeight));
+            shadow2 = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, gradientColor2);
+            shadow2.setGradientType(GradientDrawable.LINEAR_GRADIENT);
+            shadow2.setBounds((int) h.x, (int) h.y, (int) (h.x + viewDiagonalLength * 10), (int) (h.y + rPathAShadowDis / 2));
+        }
+        canvas.save();
+        mPath.moveTo(a.x - Math.max(rPathAShadowDis, lPathAShadowDis) / 2, a.y);
+        mPath.lineTo(d.x, d.y);
+        mPath.lineTo(e.x, e.y);
+        mPath.lineTo(a.x, a.y);
+        mPath.close();
+        canvas.clipPath(pathA);
+        canvas.clipPath(mPath, Region.Op.INTERSECT);
+        canvas.rotate((float) Math.toDegrees(Math.atan2(e.x - a.x, a.y - e.y)), e.x, e.y);
+        shadow1.draw(canvas);
+        canvas.restore();
+        canvas.save();
+        mPath.reset();
+        mPath.moveTo(a.x - Math.max(rPathAShadowDis, lPathAShadowDis) / 2, a.y);
+        mPath.lineTo(h.x, h.y);
+        mPath.lineTo(a.x, a.y);
+        mPath.close();
+        canvas.clipPath(pathA);
+        canvas.clipPath(mPath, Region.Op.INTERSECT);
+        canvas.rotate((float) Math.toDegrees(Math.atan2(a.y - h.y, a.x - h.x)), h.x, h.y);
+        shadow2.draw(canvas);
+        canvas.restore();
+    }
+
+    private void drawShadowHorizontal(Canvas canvas, Path pathA) {
+        canvas.save();
+        int[] gradientColors = {lightColor, deepColor};
+        GradientDrawable gradientDrawable = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, gradientColors);
+        gradientDrawable.setGradientType(GradientDrawable.LINEAR_GRADIENT);
+        //阴影矩形最大的宽度
+        int maxShadowWidth = 30;
+        gradientDrawable.setBounds((int) (a.x - Math.min(maxShadowWidth, (rPathAShadowDis / 2))), 0, (int) (a.x), (int) viewHeight);
+        canvas.clipPath(pathA, Region.Op.INTERSECT);
+        float mDegrees = (float) Math.toDegrees(Math.atan2(f.x - a.x, f.y - h.y));
+        canvas.rotate(mDegrees, a.x, a.y);
+        gradientDrawable.draw(canvas);
+        canvas.restore();
+    }
+
+    private void drawShadowRightTurn(Canvas canvas,Path pathD){
+        int[] gradientColor = {lightColor, deepColor};
+        GradientDrawable gradientDrawable = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,gradientColor);
+
+    }
+
 }
