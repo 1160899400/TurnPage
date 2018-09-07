@@ -20,11 +20,19 @@ public class MyPointUtils {
         y3 = p3.y;
         x4 = p4.x;
         y4 = p4.y;
+        //两条直线平行，则返回null
+        if ((x2 - x1) * (y4 - y3) == (x4 - x3) * (y2 - y1)) {
+            return null;
+        }
         float pointX = ((x1 - x2) * (x3 * y4 - x4 * y3) - (x3 - x4) * (x1 * y2 - x2 * y1))
                 / ((x3 - x4) * (y1 - y2) - (x1 - x2) * (y3 - y4));
         float pointY = ((y1 - y2) * (x3 * y4 - x4 * y3) - (x1 * y2 - x2 * y1) * (y3 - y4))
                 / ((y1 - y2) * (x3 - x4) - (x1 - x2) * (y3 - y4));
 
         return new MyPoint(pointX, pointY);
+    }
+
+    public static double getLength(MyPoint p1, MyPoint p2) {
+        return Math.hypot(p1.x - p2.x, p2.y - p2.y);
     }
 }

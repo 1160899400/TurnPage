@@ -7,6 +7,8 @@ import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.Region;
+import android.graphics.drawable.GradientDrawable;
 import android.support.annotation.Nullable;
 import android.support.v4.content.ContextCompat;
 import android.util.AttributeSet;
@@ -28,8 +30,6 @@ import com.royole.demo.utils.MyPointUtils;
 public class LeftPageView extends View {
     private Context context;
     private MyPoint a, f, g, e, h, c, j, b, k, d, i, m, n, o, p, q, r;
-    private Path pathLast;
-    private Path pathCurrent;
     private Bitmap bmpCurrentPage;
     private Bitmap bmpLastPage;
     private Bitmap bmpNextPage;
@@ -43,7 +43,6 @@ public class LeftPageView extends View {
     private Scroller mScroller2;
     private float viewWidth;
     private float viewHeight;
-    private float startY;
     private boolean isTurningPage = false;
     private boolean turnPage = false;
     private int turnPageMode = TurnPageMode.MODE_NO_ACTION;
@@ -55,6 +54,10 @@ public class LeftPageView extends View {
     private Matrix mMatrix;
     //-1为右上，1为右下
     private int calPointFactor;
+    private int deepColor = 0x53333333;
+    private int lightColor = 0x01333333;
+    float lPathAShadowDis = 10.0f;
+    float rPathAShadowDis = 10.0f;
 
 
     public LeftPageView(Context context, @Nullable AttributeSet attrs) {
@@ -82,8 +85,6 @@ public class LeftPageView extends View {
         p = new MyPoint();
         q = new MyPoint();
         r = new MyPoint();
-        pathLast = new Path();
-        pathCurrent = new Path();
 
         pathAPaint = new Paint();
         pathAPaint.setAntiAlias(true);
@@ -243,16 +244,21 @@ public class LeftPageView extends View {
             drawCurPage(canvas, getPathAFromTopLeft());
             drawBackPage(canvas, getPathC(getPathAFromTopLeft()));
             drawLastPage(canvas, getPathB(getPathAFromTopLeft()));
-        } else if (TurnPageMode.MODE_LEFT_MIDDLE == turnPageMode || TurnPageMode.MODE_LEFT_BOTTOM == turnPageMode) {
+            drawPathBShadow(canvas,getPathAFromTopLeft());
+        } else if (TurnPageMode.MODE_LEFT_MIDDLE == turnPageMode) {
             drawCurPage(canvas, getPathAFromBottomLeft());
             drawBackPage(canvas, getPathC(getPathAFromBottomLeft()));
             drawLastPage(canvas, getPathB(getPathAFromBottomLeft()));
+            drawPathBShadow(canvas, getPathAFromBottomLeft());
+        } else if (TurnPageMode.MODE_LEFT_BOTTOM == turnPageMode) {
+            drawCurPage(canvas, getPathAFromBottomLeft());
+            drawBackPage(canvas, getPathC(getPathAFromBottomLeft()));
+            drawLastPage(canvas, getPathB(getPathAFromBottomLeft()));
+            drawPathBShadow(canvas, getPathAFromBottomLeft());
         } else if (TurnPageMode.MODE_RIGHT_TOP == turnPageMode || TurnPageMode.MODE_RIGHT_MIDDLE == turnPageMode || TurnPageMode.MODE_RIGHT_BOTTOM == turnPageMode) {
             drawCurPage(canvas, getPathAFromRight());
             drawNextPage(canvas, getPathD());
-//            canvas.drawText("a", a.x, a.y, textPaint);
-//            canvas.drawText("m", m.x, m.y, textPaint);
-//            canvas.drawText("n", n.x, n.y, textPaint);
+            drawShadowLeftTurn(canvas);
         }
     }
 
@@ -435,8 +441,8 @@ public class LeftPageView extends View {
     private void initPointTurnLeft() {
         g.setXY((a.x + f.x) / 2, (a.y + f.y) / 2);
         r.setXY(g.x - (f.y - g.y) * (f.y - g.y) / (f.x - g.x), f.y);
-//        q.setXY(r.x - a.x / 10, f.y);
-//        p.setXY(2 * r.x / 3 + 1 * a.x / 3, 2 * r.y / 3 + 1 * a.y / 3);
+        q.setXY(r.x - a.x / 10, f.y);
+        p.setXY(2 * r.x / 3 + 1 * a.x / 3, 2 * r.y / 3 + 1 * a.y / 3);
         float eh = (float) Math.hypot(r.x - a.x, a.y - r.y);
         sin0 = (a.y - r.y) / eh;
         cos0 = (a.x - r.x) / eh;
@@ -551,7 +557,6 @@ public class LeftPageView extends View {
      */
     public void turnLeft(float height, int MODE, Bitmap bitmap) {
         a.setXY(viewWidth, height);
-        startY = height;
 //        bitmapLast = bitmapCurrent;
 //        drawCurrentPageBitmap(bitmapCurrent, paintCurrent);
         turnPageMode = MODE;
@@ -635,5 +640,96 @@ public class LeftPageView extends View {
             dy = 0;
         }
         mScroller1.startScroll((int) a.x, (int) a.y, dx, dy, 400);
+    }
+
+    private void drawShadowLeftTurn(Canvas canvas) {
+        canvas.save();
+        int[] gradientColor = {0x30333333, deepColor, lightColor};
+        GradientDrawable shadow1, shadow2;
+        Path path1, path2;
+        float mDegree1, mDegree2;
+        float shadowLength = rPathAShadowDis / 8;
+        shadow1 = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, gradientColor);
+        shadow1.setGradientType(GradientDrawable.LINEAR_GRADIENT);
+        shadow2 = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, gradientColor);
+        shadow2.setGradientType(GradientDrawable.LINEAR_GRADIENT);
+        if (turnPageMode == TurnPageMode.MODE_RIGHT_TOP) {
+            shadow1.setBounds((int) (a.x), (int) (a.y), (int) (a.x + shadowLength), (int) (a.y + viewHeight));
+            shadow2.setBounds((int) a.x, (int) (a.y - viewWidth), (int) (a.x + shadowLength), (int) (a.y));
+            mDegree1 = (float) Math.toDegrees(Math.acos(cos0));
+            mDegree2 = mDegree1 - 90;
+            path1 = new Path();
+            path1.moveTo(a.x, a.y);
+            path1.lineTo(a.x + 7, a.y - 7);
+            path1.quadTo(m.x, m.y, m.x + rPathAShadowDis, m.y);
+            path1.lineTo(m.x, m.y);
+            path1.close();
+            path2 = new Path();
+            path2.moveTo(a.x, a.y);
+            path2.lineTo(a.x + 7, a.y - 7);
+            path2.quadTo(o.x, o.y, o.x + rPathAShadowDis, o.y);
+            path2.lineTo(o.x, o.y);
+            path2.close();
+        } else {
+            shadow1.setBounds((int) (a.x), (int) (a.y - viewHeight), (int) (a.x + shadowLength), (int) (a.y));
+            shadow2.setBounds((int) a.x, (int) (a.y), (int) (a.x + shadowLength), (int) (a.y + viewWidth));
+            mDegree1 = -(float) Math.toDegrees(Math.acos(cos0));
+            mDegree2 = mDegree1 + 90;
+            path1 = new Path();
+            path1.moveTo(a.x, a.y);
+            path1.lineTo(a.x + 7, a.y + 7);
+            path1.quadTo(m.x, m.y, m.x + rPathAShadowDis, m.y);
+            path1.lineTo(m.x, m.y);
+            path1.close();
+            path2 = new Path();
+            path2.moveTo(a.x, a.y);
+            path2.lineTo(a.x + 7, a.y + 7);
+            path2.quadTo(o.x, o.y, o.x + rPathAShadowDis, o.y);
+            path2.lineTo(o.x, o.y);
+            path2.close();
+        }
+        canvas.clipPath(path1);
+        canvas.rotate(mDegree1, a.x, a.y);
+        shadow1.draw(canvas);
+        canvas.restore();
+        canvas.save();
+        canvas.clipPath(path2);
+        canvas.rotate(mDegree2, a.x, a.y);
+        shadow2.draw(canvas);
+        canvas.restore();
+    }
+
+    private void drawPathBShadow(Canvas canvas,Path pathA){
+        canvas.save();
+        canvas.clipPath(pathA);//裁剪出A区域
+        canvas.clipPath(getPathC(pathA),Region.Op.UNION);//裁剪出A和C区域的全集
+        canvas.clipPath(getPathB(pathA), Region.Op.REVERSE_DIFFERENCE);//裁剪出B区域中不同于与AC区域的部分
+        int[] gradientColors = new int[] {deepColor,lightColor};
+        int deepOffset = 0;
+        int lightOffset = 6;
+        float aTof =(float) Math.hypot((a.x - f.x),(a.y - f.y));
+        float viewDiagonalLength = (float) Math.hypot(viewWidth, viewHeight);
+        int left;
+        int right;
+        int top = (int) c.y;
+        int bottom = (int) (viewDiagonalLength + c.y);
+        GradientDrawable gradientDrawable;
+        if(turnPageMode == TurnPageMode.MODE_LEFT_TOP){
+            gradientDrawable =new GradientDrawable(GradientDrawable.Orientation.RIGHT_LEFT,gradientColors);
+            gradientDrawable.setGradientType(GradientDrawable.LINEAR_GRADIENT);
+            right = (int) (c.x + deepOffset);
+            left = (int) (c.x - aTof/4 - lightOffset);
+        }else {
+            //从右向左线性渐变
+            gradientDrawable =new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,gradientColors);
+            gradientDrawable.setGradientType(GradientDrawable.LINEAR_GRADIENT);
+            right = (int) (c.x + aTof/4 + lightOffset);
+            left = (int) (c.x - deepOffset);
+        }
+        gradientDrawable.setBounds(left,top,right,bottom);
+        float rotateDegrees = (float) Math.toDegrees(Math.atan2(e.x- f.x, h.y - f.y));
+        canvas.rotate(rotateDegrees, c.x, c.y);
+        gradientDrawable.draw(canvas);
+        canvas.restore();
     }
 }

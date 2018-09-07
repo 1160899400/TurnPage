@@ -6,10 +6,6 @@ import android.graphics.Matrix;
 import android.graphics.PixelFormat;
 import android.graphics.drawable.Drawable;
 
-/**
- * @author HZLI02
- * Created by anlia on 2017/12/11.
- */
 
 public class BitmapUtils {
     /**

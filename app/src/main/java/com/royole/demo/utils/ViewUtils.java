@@ -2,9 +2,7 @@ package com.royole.demo.utils;
 
 import android.view.View;
 
-/**
- * Created by anlia on 2017/12/12.
- */
+
 
 public class ViewUtils {
 
