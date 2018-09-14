@@ -12,7 +12,6 @@ import android.graphics.Region;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Environment;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
@@ -33,6 +32,15 @@ public class RightPageView extends View {
     private Context context;
     private float viewWidth;
     private float viewHeight;
+
+    private float turnWidth;
+    private float turnHeight;
+    private final float curvature = 0.25f;
+    private float turnLeftAngel;
+
+    private Path pathA;
+    private Path pathB;
+
 
     private final int MAX_PAGE = 8;
     private int deepColor = 0x55333333;
@@ -81,8 +89,8 @@ public class RightPageView extends View {
 
     private Paint textPaint;
 
-    float lPathAShadowDis = 10.0f;
-    float rPathAShadowDis = 10.0f;
+    float lPathAShadowDis = 30.0f;
+    float rPathAShadowDis = 20.0f;
     private GradientDrawable shadow1;
     private GradientDrawable shadow2;
 
@@ -126,6 +134,8 @@ public class RightPageView extends View {
         textPaint.setTextAlign(Paint.Align.CENTER);
         textPaint.setSubpixelText(true);
         textPaint.setTextSize(30);
+        pathA = new Path();
+        pathB = new Path();
     }
 
     @Override
@@ -186,13 +196,19 @@ public class RightPageView extends View {
         super.onDraw(canvas);
         if (TurnPageMode.MODE_NO_ACTION == turnPageMode) {
             drawCurPage(canvas, getPathDefault());
-        } else if (TurnPageMode.MODE_RIGHT_MIDDLE == turnPageMode || TurnPageMode.MODE_RIGHT_BOTTOM == turnPageMode) {
-            drawCurPage(canvas, getPathAFromBottomRight());
-            drawBackPage(canvas, getPathC(getPathAFromBottomRight()));
-            drawShadowHorizontal(canvas, getPathAFromBottomRight());
-            drawNextPage(canvas, getPathB(getPathAFromBottomRight()));
-            drawPathBShadow(canvas, getPathAFromBottomRight());
-        } else if (TurnPageMode.MODE_LEFT_TOP == turnPageMode || TurnPageMode.MODE_LEFT_MIDDLE == turnPageMode || TurnPageMode.MODE_LEFT_BOTTOM == turnPageMode) {
+        } else if (TurnPageMode.MODE_RIGHT_MIDDLE == turnPageMode) {
+            drawCurPage(canvas, pathA);
+            drawBackPage(canvas, getPathC());
+            drawNextPage(canvas, pathB);
+            drawPathBShadow(canvas, pathA);
+            drawShadowHorizontal(canvas, pathA);
+        } else if (TurnPageMode.MODE_RIGHT_BOTTOM == turnPageMode) {
+            drawCurPage(canvas, pathA);
+            drawBackPage(canvas, getPathC());
+            drawNextPage(canvas, pathB);
+            drawPathBShadow(canvas, pathA);
+            drawShadow(canvas, pathA);
+        } else if (TurnPageMode.MODE_LEFT_MIDDLE == turnPageMode || TurnPageMode.MODE_LEFT_BOTTOM == turnPageMode) {
             drawCurPage(canvas, getPathAFromLeft());
             drawLastPage(canvas, getPathD());
             drawShadowRightTurn(canvas);
@@ -320,26 +336,20 @@ public class RightPageView extends View {
         }
     }
 
-    /**
-     * 绘制当前页内容(将bitmap绘入A区域)
-     */
+
     private void drawCurPage(Canvas canvas, Path path) {
         canvas.save();
-        //对绘制内容进行裁剪，取和A区域的交集
         canvas.clipPath(path);
         canvas.drawBitmap(bmpCurrentPage, 0, 0, null);
-
+//        canvas.drawColor(getResources().getColor(R.color.blue_light));
         canvas.restore();
     }
 
-
-    /**
-     * 绘制下一页内容
-     */
     private void drawNextPage(Canvas canvas, Path path) {
         canvas.save();
         canvas.clipPath(path);
         canvas.drawBitmap(bmpNextPage, 0, 0, null);
+//        canvas.drawColor(getResources().getColor(R.color.red_light));
         canvas.restore();
     }
 
@@ -348,58 +358,44 @@ public class RightPageView extends View {
      * 绘制当前页的背面内容
      */
     private void drawBackPage(Canvas canvas, Path path) {
-
         canvas.save();
-
-        Canvas canvasCache = new Canvas();
-        Bitmap bitmapCache = Bitmap.createBitmap((int) viewWidth + 200, (int) viewHeight + 200, Bitmap.Config.ARGB_8888);
-        canvasCache.setBitmap(bitmapCache);
-        // 计算底部扭曲的起始细分下标
         float mSubMinWidth = viewWidth / SUB_WIDTH;
         float mSubMinHeight = viewHeight / SUB_HEIGHT;
-        int mSubWidthStart = (int) Math.round(MyPointUtils.getLength(b, a) / mSubMinWidth) - 1;
-        int mSubWidthEnd = (int) Math.round((MyPointUtils.getLength(e, a) + MyPointUtils.getLength(c, e)) / mSubMinWidth) + 1;
-        // 计算右侧扭曲的起始细分下标
-        int mSubHeightEnd = (int) Math.round((viewHeight - MyPointUtils.getLength(k, a)) / mSubMinHeight) + 1;
-        int mSubHeightStart = (int) Math.round((viewHeight - MyPointUtils.getLength(a, h)) / mSubMinHeight) - 1;
-
+        // 计算底部扭曲的起始细分下标
+        int mSubWidthStart = (int) (Math.hypot(a.x - b.x, a.y - b.y) / mSubMinWidth) - 5;
+        int mSubWidthEnd = (int) ((MyPointUtils.getLength(a, b) + MyPointUtils.getLength(b, c)) / mSubMinWidth) + 2;
+        int mSubHeightEnd, mSubHeightStart;
+        // 计算左侧扭曲的起始细分下标,若为四边形区域，则左侧不需要扭曲
+        if (k.y <= viewHeight - f.y) {
+            mSubHeightStart = mSubHeightEnd = 0;
+        } else {
+            mSubHeightStart = (int) (h.y / mSubMinHeight) - 4;
+            mSubHeightEnd = (int) (h.y + curvature * turnHeight / mSubMinHeight) + 4;
+        }
         // 长边偏移
-        float offsetLong = (i.x - k.x) / 2;
-        // 长边偏移倍增
-        float mulOffsetLong = 1.0F;
+        float offsetLong = curvature / 1.2F * turnHeight;
+        // 长边偏移倍减
+        float mulOffsetLong = 1.5F;
         // 短边偏移
-        float offsetShort = (e.x - c.x) / 2;
+        float offsetShort = curvature / 1.2F * turnWidth;
         // 短边偏移倍增
-        float mulOffsetShort = 1.0F;
+        float mulOffsetShort = 1.5F;
         /*
          * 生成折叠区域的扭曲坐标
          */
-
-        Log.i("###sub", "start width:  " + mSubWidthStart + "   end width:  " + mSubWidthEnd);
-        Log.i("###sub", "start height:  " + mSubHeightStart + "   end height:  " + mSubHeightEnd);
-
         int index = 0;
         for (int y = 0; y <= SUB_HEIGHT; y++) {
-            float fy = viewHeight * y / SUB_HEIGHT;
+            float fy = y * mSubMinHeight;
             for (int x = 0; x <= SUB_WIDTH; x++) {
-                float fx = viewWidth * x / SUB_WIDTH;
-                /*
-                 * 左侧扭曲
-                 */
-                if (x >= 0 && x <= 3) {
+                float fx = mSubMinWidth * x;
+                if (x == 0) {
                     if (y >= mSubHeightStart && y <= mSubHeightEnd) {
-                        fx = fx - offsetLong * mulOffsetLong;
-                        mulOffsetLong = mulOffsetLong / 1.5F;
+                        fx = mSubMinWidth * x - offsetLong * mulOffsetLong;
                     }
                 }
-
-                /*
-                 * 底部扭曲
-                 */
                 if (y == SUB_HEIGHT) {
                     if (x >= mSubWidthStart && x <= mSubWidthEnd) {
-                        fy = fy + offsetShort * mulOffsetShort;
-                        mulOffsetShort = mulOffsetShort / 1.5F;
+                        fy = mSubMinHeight * y + offsetShort * mulOffsetShort;
                     }
                 }
                 mDistortPoint[index * 2] = fx;
@@ -407,24 +403,11 @@ public class RightPageView extends View {
                 index += 1;
             }
         }
-        canvasCache.drawBitmapMesh(bmpBackPage, SUB_WIDTH, SUB_HEIGHT, mDistortPoint, 0, null, 0, null);
-
-
         canvas.clipPath(path);
-        float eh = (float) Math.hypot(f.x - e.x, h.y - f.y);
-        float cos0 = (h.y - f.y) / eh;
-        float angel = new Double(Math.toDegrees(Math.acos(cos0))).floatValue();
         //设置翻转和旋转矩阵
-        mMatrix.reset();
-        mMatrix.setRotate(-2 * angel, 0, f.y);
-        mMatrix.postTranslate(a.x - 0, a.y - f.y);
-
-//        Paint vPaint = new Paint();
-//        vPaint.setStyle(Paint.Style.STROKE);
-//        vPaint.setAlpha(60);
-//        canvas.drawColor(getResources().getColor(R.color.yellow_light));
-        canvas.drawBitmap(bitmapCache, mMatrix, null);
-//        canvas.drawBitmap(bmpBackPage, mMatrix, null);
+        canvas.translate(a.x - 0, a.y - f.y);
+        canvas.rotate(-2 * turnLeftAngel, 0, f.y);
+        canvas.drawBitmapMesh(bmpBackPage, SUB_WIDTH, SUB_HEIGHT, mDistortPoint, 0, null, 0, null);
         canvas.restore();
     }
 
@@ -484,22 +467,26 @@ public class RightPageView extends View {
     }
 
 
-    /**
-     * 当翻起区域在右下角时的path绘制
-     *
-     * @return
-     */
-    private Path getPathAFromBottomRight() {
-        Path path = new Path();
-        path.lineTo(0, viewHeight);
-        path.lineTo(c.x, c.y);
-        path.quadTo(e.x, e.y, b.x, b.y);
-        path.lineTo(a.x, a.y);
-        path.lineTo(k.x, k.y);
-        path.quadTo(h.x, h.y, j.x, j.y);
-        path.lineTo(viewWidth, 0);
-        path.close();//闭合区域
-        return path;
+    private void initPathATriangle() {
+        pathA.reset();
+        pathA.lineTo(0, viewHeight);
+        pathA.lineTo(c.x, c.y);
+        pathA.quadTo(e.x, e.y, b.x, b.y);
+        pathA.lineTo(a.x, a.y);
+        pathA.lineTo(k.x, k.y);
+        pathA.quadTo(h.x, h.y, j.x, j.y);
+        pathA.lineTo(viewWidth, 0);
+        pathA.close();//闭合区域
+    }
+
+    private void initPathAQuadrangle() {
+        pathA.reset();
+        pathA.lineTo(0, viewHeight);
+        pathA.lineTo(c.x, c.y);
+        pathA.quadTo(e.x, e.y, b.x, b.y);
+        pathA.lineTo(a.x, a.y);
+        pathA.lineTo(k.x, k.y);
+        pathA.close();
     }
 
     private Path getPathAFromLeft() {
@@ -510,13 +497,11 @@ public class RightPageView extends View {
 
     /**
      * 下一页区域
-     *
-     * @return
      */
-    private Path getPathB(Path pathA) {
-
-        Path path = getPathDefault();
-        path.op(pathA, Path.Op.DIFFERENCE);
+    private void initPathBTriangle() {
+        pathB.reset();
+        pathB = getPathDefault();
+        pathB.op(pathA, Path.Op.DIFFERENCE);
         Path pathCache = new Path();
         pathCache.moveTo(a.x, a.y);
         pathCache.lineTo(b.x, b.y);
@@ -524,8 +509,21 @@ public class RightPageView extends View {
         pathCache.lineTo(i.x, i.y);
         pathCache.lineTo(k.x, k.y);
         pathCache.close();
-        path.op(pathCache, Path.Op.DIFFERENCE);
-        return path;
+        pathB.op(pathCache, Path.Op.DIFFERENCE);
+    }
+
+    private void initPathBQuadrangle() {
+        pathB.reset();
+        pathB = getPathDefault();
+        pathB.op(pathA, Path.Op.DIFFERENCE);
+        Path pathCache = new Path();
+        pathCache.moveTo(a.x, a.y);
+        pathCache.lineTo(b.x, b.y);
+        pathCache.lineTo(d.x, d.y);
+        pathCache.lineTo(i.x, i.y);
+        pathCache.lineTo(k.x, k.y);
+        pathCache.close();
+        pathB.op(pathCache, Path.Op.DIFFERENCE);
     }
 
     /**
@@ -533,7 +531,7 @@ public class RightPageView extends View {
      *
      * @return
      */
-    private Path getPathC(Path pathA) {
+    private Path getPathC() {
 //        Path path = new Path();
 //        path.moveTo(i.x, i.y);
 //        path.lineTo(d.x, d.y);
@@ -544,7 +542,7 @@ public class RightPageView extends View {
 //        path.op(pathA, Path.Op.DIFFERENCE);
         Path path = getPathDefault();
         path.op(pathA, Path.Op.DIFFERENCE);
-        path.op(getPathB(pathA), Path.Op.DIFFERENCE);
+        path.op(pathB, Path.Op.DIFFERENCE);
         return path;
     }
 
@@ -575,21 +573,37 @@ public class RightPageView extends View {
      * 初始化折起区域的关键点坐标
      */
     private void initPointTurnLeft() {
-        //g为a,f中点
-        g.setXY((a.x + f.x) / 2, (a.y + f.y) / 2);
+        float temp1 = viewWidth - a.x;
+        float temp2 = viewHeight - a.y;
+        turnWidth = (temp1 * temp1 + temp2 * temp2) / (2 * temp1);
+        turnHeight = (temp1 * temp1 + temp2 * temp2) / (2 * temp2);
         //eh与af垂直，e为与f水平的点，h为与f垂直的点
-        e.setXY(g.x - (f.y - g.y) * (f.y - g.y) / (f.x - g.x), f.y);
-//        if(){
-//
-//        }
-        h.setXY(f.x, g.y - (f.x - g.x) * (f.x - g.x) / (f.y - g.y));
-
-        c.setXY(e.x - (f.x - e.x) / 2, f.y);
-        j.setXY(f.x, h.y - (f.y - h.y) / 2);
-        b = MyPointUtils.getIntersectionPoint(a, e, c, j);
-        k = MyPointUtils.getIntersectionPoint(a, h, c, j);
+        e.setXY(viewWidth - turnWidth, f.y);
+        c.setXY(e.x - curvature * turnWidth, f.y);
+        b.setXY((1 - curvature) * e.x + curvature * a.x, (1 - curvature) * e.y + curvature * a.y);
         d.setXY((c.x + 2 * e.x + b.x) / 4, (2 * e.y + c.y + b.y) / 4);
+        h.setXY(viewWidth, viewHeight - turnHeight);
+        j.setXY(viewWidth, h.y - curvature * turnHeight);
+        k.setXY((1 - curvature) * h.x + curvature * a.x, (1 - curvature) * h.y + curvature * a.y);
         i.setXY((j.x + 2 * h.x + k.x) / 4, (2 * h.y + j.y + k.y) / 4);
+        if (k.y < viewHeight - f.y) {
+            //背面区域为四边形
+            float temp3 = turnHeight - viewHeight;
+//            float turnHeightTemp = turnHeight * (1 + curvature);
+//            h.setXY(viewWidth - temp3 / turnHeight * turnWidth, viewHeight - f.y);
+            k.setXY(viewWidth - temp3 / (temp3 + a.y) * (viewWidth - a.x), viewHeight - f.y);
+            i = MyPointUtils.getIntersectionPoint(new MyPoint(0, viewHeight - f.y), new MyPoint(viewWidth, viewHeight - f.y), i, d);
+            initPathAQuadrangle();
+            initPathBQuadrangle();
+        } else {
+            initPathATriangle();
+            initPathBTriangle();
+        }
+
+        float eh = (float) Math.hypot(f.x - e.x, turnHeight);
+        float cos0 = -turnHeight / eh;
+        turnLeftAngel = new Double(Math.toDegrees(Math.acos(cos0))).floatValue();
+
         //计算d点到ae的距离
         float lA = a.y - e.y;
         float lB = e.x - a.x;
@@ -652,12 +666,6 @@ public class RightPageView extends View {
         isTurningPage = true;
         int dx = 0, dy = 0;
         switch (turnPageMode) {
-            case TurnPageMode.MODE_LEFT_TOP:
-                dx = (int) viewWidth - (int) a.x;
-                dy = 0 - (int) a.y;
-                f.setXY(-1 * viewWidth, 0f);
-                calPointFactor = -1;
-                break;
             case TurnPageMode.MODE_LEFT_MIDDLE:
             case TurnPageMode.MODE_LEFT_BOTTOM:
                 dx = (int) viewWidth - (int) a.x;
@@ -700,21 +708,21 @@ public class RightPageView extends View {
         //渐变颜色数组
         int[] gradientColor1 = {lightColor, deepColor};
         int[] gradientColor2 = {deepColor, lightColor, lightColor};
-        if (turnPageMode == TurnPageMode.MODE_RIGHT_TOP) {
-            shadow1 = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, gradientColor1);
-            shadow1.setGradientType(GradientDrawable.LINEAR_GRADIENT);
-            shadow1.setBounds((int) (e.x - lPathAShadowDis / 2), (int) e.y, (int) (e.x), (int) (e.y + viewHeight));
-            shadow2 = new GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, gradientColor2);
-            shadow2.setGradientType(GradientDrawable.LINEAR_GRADIENT);
-            shadow2.setBounds((int) h.x, (int) (h.y - rPathAShadowDis / 2), (int) (h.x + viewDiagonalLength * 10), (int) h.y);
-        } else {
-            shadow1 = new GradientDrawable(GradientDrawable.Orientation.RIGHT_LEFT, gradientColor1);
-            shadow1.setGradientType(GradientDrawable.LINEAR_GRADIENT);
-            shadow1.setBounds((int) (e.x), (int) e.y, (int) (e.x + lPathAShadowDis / 2), (int) (e.y + viewHeight));
-            shadow2 = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, gradientColor2);
-            shadow2.setGradientType(GradientDrawable.LINEAR_GRADIENT);
-            shadow2.setBounds((int) h.x, (int) h.y, (int) (h.x + viewDiagonalLength * 10), (int) (h.y + rPathAShadowDis / 2));
-        }
+//        if (turnPageMode == TurnPageMode.MODE_RIGHT_TOP) {
+//            shadow1 = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, gradientColor1);
+//            shadow1.setGradientType(GradientDrawable.LINEAR_GRADIENT);
+//            shadow1.setBounds((int) (e.x - lPathAShadowDis / 2), (int) e.y, (int) (e.x), (int) (e.y + viewHeight));
+//            shadow2 = new GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, gradientColor2);
+//            shadow2.setGradientType(GradientDrawable.LINEAR_GRADIENT);
+//            shadow2.setBounds((int) h.x, (int) (h.y - rPathAShadowDis / 2), (int) (h.x + viewDiagonalLength * 10), (int) h.y);
+//        } else {
+        shadow1 = new GradientDrawable(GradientDrawable.Orientation.RIGHT_LEFT, gradientColor1);
+        shadow1.setGradientType(GradientDrawable.LINEAR_GRADIENT);
+        shadow1.setBounds((int) (e.x), (int) e.y, (int) (e.x + lPathAShadowDis / 2), (int) (e.y + viewHeight));
+        shadow2 = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, gradientColor2);
+        shadow2.setGradientType(GradientDrawable.LINEAR_GRADIENT);
+        shadow2.setBounds((int) h.x, (int) h.y, (int) (h.x + viewDiagonalLength * 10), (int) (h.y + rPathAShadowDis / 2));
+//        }
         canvas.save();
         mPath.moveTo(a.x - Math.max(rPathAShadowDis, lPathAShadowDis) / 2, a.y);
         mPath.lineTo(d.x, d.y);
@@ -734,7 +742,7 @@ public class RightPageView extends View {
         mPath.close();
         canvas.clipPath(pathA);
         canvas.clipPath(mPath, Region.Op.INTERSECT);
-        canvas.rotate((float) Math.toDegrees(Math.atan2(a.y - h.y, a.x - h.x)), h.x, h.y);
+        canvas.rotate((float) Math.toDegrees(Math.atan2(a.y - k.y, a.x - k.x)), h.x, h.y);
         shadow2.draw(canvas);
         canvas.restore();
     }
@@ -748,8 +756,7 @@ public class RightPageView extends View {
         int maxShadowWidth = 30;
         gradientDrawable.setBounds((int) (a.x - Math.min(maxShadowWidth, (rPathAShadowDis / 2))), 0, (int) (a.x), (int) viewHeight);
         canvas.clipPath(pathA, Region.Op.INTERSECT);
-        float mDegrees = (float) Math.toDegrees(Math.atan2(f.x - a.x, f.y - h.y));
-        canvas.rotate(mDegrees, a.x, a.y);
+        canvas.rotate((float) Math.toDegrees(Math.atan2(f.x - a.x, f.y - h.y)), a.x, a.y);
         gradientDrawable.draw(canvas);
         canvas.restore();
     }
@@ -813,34 +820,26 @@ public class RightPageView extends View {
 
     private void drawPathBShadow(Canvas canvas, Path pathA) {
         canvas.save();
-        canvas.clipPath(pathA);//裁剪出A区域
-        canvas.clipPath(getPathC(pathA), Region.Op.UNION);//裁剪出A和C区域的全集
-        canvas.clipPath(getPathB(pathA), Region.Op.REVERSE_DIFFERENCE);//裁剪出B区域中不同于与AC区域的部分
+        canvas.clipPath(pathA);
+        canvas.clipPath(getPathC(), Region.Op.UNION);
+        canvas.clipPath(pathB, Region.Op.REVERSE_DIFFERENCE);
         int[] gradientColors = new int[]{deepColor, lightColor};
         int deepOffset = 0;
         int lightOffset = 0;
-        float aTof = (float) Math.hypot((a.x - f.x), (a.y - f.y));
+        float aTof = (float) MyPointUtils.getLength(a,f);
         float viewDiagonalLength = (float) Math.hypot(viewWidth, viewHeight);
         int left;
         int right;
         int top = (int) c.y;
         int bottom = (int) (viewDiagonalLength + c.y);
         GradientDrawable gradientDrawable;
-        if (turnPageMode == TurnPageMode.MODE_RIGHT_TOP) {
-            gradientDrawable = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, gradientColors);
-            gradientDrawable.setGradientType(GradientDrawable.LINEAR_GRADIENT);
-            left = (int) (c.x - deepOffset);//c点位于左上角
-            right = (int) (c.x + aTof / 4 + lightOffset);
-        } else {
-            //从右向左线性渐变
-            gradientDrawable = new GradientDrawable(GradientDrawable.Orientation.RIGHT_LEFT, gradientColors);
-            gradientDrawable.setGradientType(GradientDrawable.LINEAR_GRADIENT);
-            left = (int) (c.x - aTof / 4 - lightOffset);
-            right = (int) (c.x + deepOffset);
-        }
+        //从右向左线性渐变
+        gradientDrawable = new GradientDrawable(GradientDrawable.Orientation.RIGHT_LEFT, gradientColors);
+        gradientDrawable.setGradientType(GradientDrawable.LINEAR_GRADIENT);
+        left = (int) (c.x - aTof / 4 - lightOffset);
+        right = (int) (c.x + deepOffset);
         gradientDrawable.setBounds(left, top, right, bottom);
-        float rotateDegrees = (float) Math.toDegrees(Math.atan2(e.x - f.x, h.y - f.y));
-        canvas.rotate(rotateDegrees, c.x, c.y);
+        canvas.rotate((float) Math.toDegrees(Math.atan2(e.x- f.x, h.y - f.y)), c.x, c.y);
         gradientDrawable.draw(canvas);
         canvas.restore();
     }
